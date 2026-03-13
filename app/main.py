@@ -27,27 +27,30 @@ async def lifespan(app: FastAPI):
     app.state.processor = processor
     app.state.device = device
 
-    # startup: build vocabulary from captions
-    dict_captions = load_captions(str(_CAPTIONS_FILE))
-    vocab, word2idx, idx2word = build_vocabulary(dict_captions)
-    app.state.word2idx = word2idx
-    app.state.idx2word = idx2word
-
-    # startup: load LSTM CaptionModel
-    lstm_model = CaptionModel(vocab_size=len(vocab)).to(device)
-    lstm_model.load_state_dict(torch.load(_LSTM_CHECKPOINT, map_location=device))
-    lstm_model.eval()
-    app.state.lstm_model = lstm_model
+    # startup: load LSTM if available
+    try:
+        dict_captions = load_captions(str(_CAPTIONS_FILE))
+        vocab, word2idx, idx2word = build_vocabulary(dict_captions)
+        lstm_model = CaptionModel(vocab_size=len(vocab)).to(device)
+        lstm_model.load_state_dict(torch.load(_LSTM_CHECKPOINT, map_location=device))
+        lstm_model.eval()
+        app.state.lstm_model = lstm_model
+        app.state.word2idx = word2idx
+        app.state.idx2word = idx2word
+        app.state.lstm_available = True
+    except FileNotFoundError:
+        app.state.lstm_available = False
 
     yield
     # shutdown: cleanup here
-    del model, processor, lstm_model
+    del model, processor
+
 
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,7 +61,10 @@ async def caption(request: Request, file: UploadFile = File(...), model_type: st
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     state = request.app.state
+
     if model_type == "lstm":
+        if not state.lstm_available:
+            return {"caption": "LSTM model not available in production.", "model": "lstm"}
         result = lstm_generate_caption(
             state.lstm_model,
             image,
@@ -68,4 +74,5 @@ async def caption(request: Request, file: UploadFile = File(...), model_type: st
         )
     else:
         result = generate_caption(image, state.model, state.processor, state.device)
+
     return {"caption": result, "model": model_type}
