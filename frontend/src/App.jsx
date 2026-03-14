@@ -30,7 +30,7 @@ export default function App() {
     form.append('model_type', modelType)
 
     try {
-      const res = await fetch('http://localhost:8000/caption', {
+      const res = await fetch('https://rakeshn591-image-caption-generator.hf.space/caption', {
         method: 'POST',
         body: form,
       })
