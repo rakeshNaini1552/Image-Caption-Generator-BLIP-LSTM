@@ -12,7 +12,7 @@ pinned: false
 A full-stack image captioning application that generates natural language descriptions of images using two models — a pretrained BLIP model and a custom-trained LSTM+CNN model built from scratch.
 
 ## Live Demo
-- **Frontend**: [Vercel URL]
+- **Frontend**: https://image-caption-generator-blip-lstm.vercel.app/
 - **Backend API**: https://rakeshn591-image-caption-generator.hf.space/docs
 
 ## Stack
